@@ -184,6 +184,9 @@ LDLIBS += $(shell if [ $(GLIBC_VERSION_MAJOR) -lt 2 ] \
   || [ \( $(GLIBC_VERSION_MAJOR) -eq 2 \) -a \( $(GLIBC_VERSION_MINOR) -lt 17 \) ] ; \
   then echo "-lrt" ; fi )
 
+LDFLAGS += $(shell $(PKG_CONFIG) --libs-only-L libcap)
+LDLIBS += $(shell $(PKG_CONFIG) --libs-only-l libcap)
+
 TESTUPNPDESCGENOBJS = testupnpdescgen.o upnpdescgen.o
 
 EXECUTABLES = miniupnpd testupnpdescgen testgetifstats \
