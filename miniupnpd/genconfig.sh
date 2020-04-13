@@ -297,6 +297,7 @@ case $OS_NAME in
 		if [ \( $KERNVERA -ge 3 \) -o \( $KERNVERA -eq 2 -a $KERNVERB -ge 4 \) ]; then
 			HAVE_IP_MREQN=1
 		fi
+		USE_CAPABILITIES=1
 		# Debian GNU/Linux special case
 		if [ -f /etc/debian_version ]; then
 			OS_NAME=Debian
@@ -445,6 +446,11 @@ if [ -z "$V6SOCKETS_ARE_V6ONLY" ] ; then
 	V6SOCKETS_ARE_V6ONLY=0
 fi
 
+# set USE_CAPABILITIES to 0 if it was not set above
+if [ -z "$USE_CAPABILITIES" ] ; then
+	USE_CAPABILITIES=0
+fi
+
 echo "Configuring compilation for [$OS_NAME] [$OS_VERSION] with [$FW] firewall software."
 echo "Please edit config.h for more compilation options."
 
@@ -466,6 +472,14 @@ echo "" >> ${CONFIGFILE}
 
 echo "/* syslog facility to be used by miniupnpd */" >> ${CONFIGFILE}
 echo "#define LOG_MINIUPNPD		 ${LOG_MINIUPNPD}" >> ${CONFIGFILE}
+echo "" >> ${CONFIGFILE}
+
+echo "/* use Linux capabilities to disabled unneeded privileges */" >> ${CONFIGFILE}
+if [ $USE_CAPABILITIES -eq 1 ] ; then
+	echo "#define USE_CAPABILITIES" >> ${CONFIGFILE}
+else
+	echo "/*#define USE_CAPABILITIES*/" >> ${CONFIGFILE}
+fi
 echo "" >> ${CONFIGFILE}
 
 echo "/* Uncomment the following line to allow miniupnpd to be" >> ${CONFIGFILE}
