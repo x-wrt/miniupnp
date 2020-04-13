@@ -97,6 +97,8 @@ else
 endif
 UUID=$(shell ($(UUIDEXECDIR)genuuid || $(UUIDEXECDIR)uuidgen || $(UUIDEXECDIR)uuid) 2> /dev/null )
 
+LDFLAGS += $(shell $(PKG_CONFIG) --libs-only-L libcap)
+LDLIBS += $(shell $(PKG_CONFIG) --libs-only-l libcap)
 
 TESTUPNPDESCGENOBJS = testupnpdescgen.o upnpdescgen.o
 
