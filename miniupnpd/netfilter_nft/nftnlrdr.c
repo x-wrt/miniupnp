@@ -66,6 +66,23 @@ static struct timestamp_entry * timestamp_list = NULL;
 #define NAT_CHAIN_TYPE		"nat"
 #define FILTER_CHAIN_TYPE	"filter"
 
+void call_cone_nat_add_rule(const char *iaddr, unsigned short iport, unsigned short eport)
+{
+	char cmd[256];
+	sprintf(cmd, "test -e /usr/share/natcapd/natcapd.cone_nat_unused.sh && "
+			"sh /usr/share/natcapd/natcapd.cone_nat_unused.sh addrule %s %u %u",
+		   iaddr, iport, eport);
+	system(cmd);
+}
+void call_cone_nat_del_rule(const char *iaddr, unsigned short iport, unsigned short eport)
+{
+	char cmd[256];
+	sprintf(cmd, "test -e /usr/share/natcapd/natcapd.cone_nat_unused.sh && "
+			"sh /usr/share/natcapd/natcapd.cone_nat_unused.sh delrule %s %u %u",
+		   iaddr, iport, eport);
+	system(cmd);
+}
+
 /* init and shutdown functions */
 int
 init_redirect(void)
@@ -198,6 +215,7 @@ add_redirect_rule2(const char * ifname,
 	ret = nft_send_rule(r, NFT_MSG_NEWRULE, RULE_CHAIN_REDIRECT);
 	if (ret >= 0) {
 		add_timestamp_entry(eport, proto, timestamp);
+		call_cone_nat_add_rule(iaddr, iport, eport);
 	}
 	return ret;
 }
@@ -317,6 +335,7 @@ delete_redirect_and_filter_rules(unsigned short eport, int proto)
 
 			r = rule_del_handle(p);
 			/* Todo: send bulk request */
+			call_cone_nat_del_rule(inet_ntoa(*(struct in_addr *)&iaddr), iport, eport);
 			nft_send_rule(r, NFT_MSG_DELRULE, RULE_CHAIN_REDIRECT);
 			break;
 		}
@@ -711,6 +730,8 @@ update_portmapping(const char * ifname, unsigned short eport, int proto,
 
 	if (add_filter_rule2(ifname, rhost, iaddr_str, eport, iport, proto, desc) < 0)
 		return -1;
+
+	call_cone_nat_add_rule(iaddr_str, iport, eport);
 
 	return 0;
 }
