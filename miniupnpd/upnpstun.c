@@ -515,12 +515,16 @@ int perform_stun(const char *if_name, const char *if_addr, const char *stun_host
 	for (i = 0; i < 4; ++i) {
 		if (!(have_mapped_addr & (1 << i)))
 			continue;
-		if (ntohs(mapped_addrs[i].sin_port) != local_ports[i] || memcmp(&mapped_addrs[i].sin_addr, ext_addr, sizeof(*ext_addr)) != 0) {
-			/* External IP address or port was changed,
+		if (memcmp(&mapped_addrs[i].sin_addr, ext_addr, sizeof(*ext_addr)) != 0) {
+			/* External IP address was changed,
 			 * therefore symmetric NAT is active */
-			syslog(LOG_NOTICE, "%s: #%d external address or port changed",
+			syslog(LOG_NOTICE, "%s: #%d external address changed",
 			       "perform_stun", i);
 			*restrictive_nat = 1;
+		}
+		if (ntohs(mapped_addrs[i].sin_port) != local_ports[i]) {
+			syslog(LOG_NOTICE, "%s: #%d external port changed, but assume 1:1 nat map ok",
+			       "perform_stun", i);
 		}
 	}
 
