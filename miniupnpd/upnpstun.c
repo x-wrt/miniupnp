@@ -439,6 +439,9 @@ int perform_stun(const char *if_name, const char *if_addr, const char *stun_host
 
 	/* Unblock local ports */
 	for (i = 0; i < 4; ++i) {
+		char buffer[100];
+		snprintf(buffer, sizeof(buffer), "/usr/sbin/iptables -t nat -I POSTROUTING -p udp --sport %hu -j RETURN", local_ports[i]);
+		system(buffer);
 		if (add_filter_rule2(if_name, NULL, if_addr, local_ports[i], local_ports[i], IPPROTO_UDP, "stun test") < 0) {
 			syslog(LOG_ERR, "%s: add_filter_rule2(..., %hu, ...) FAILED",
 			       "perform_stun", local_ports[i]);
@@ -469,6 +472,9 @@ int perform_stun(const char *if_name, const char *if_addr, const char *stun_host
 
 	/* Remove unblock for local ports */
 	for (i = 0; i < 4; ++i) {
+		char buffer[100];
+		snprintf(buffer, sizeof(buffer), "/usr/sbin/iptables -t nat -D POSTROUTING -p udp --sport %hu -j RETURN", local_ports[i]);
+		system(buffer);
 		delete_filter_rule(if_name, local_ports[i], IPPROTO_UDP);
 		close(fds[i]);
 	}
