@@ -439,6 +439,9 @@ int perform_stun(const char *if_name, const char *if_addr, const char *stun_host
 
 	/* Unblock local ports */
 	for (i = 0; i < 4; ++i) {
+		char buffer[100];
+		snprintf(buffer, sizeof(buffer), "nft insert rule inet fw4 srcnat udp sport %hu counter return comment miniupnpd-stun", local_ports[i]);
+		system(buffer);
 		if (add_filter_rule2(if_name, NULL, if_addr, local_ports[i], local_ports[i], IPPROTO_UDP, "stun test") < 0) {
 			syslog(LOG_ERR, "%s: add_filter_rule2(..., %hu, ...) FAILED",
 			       "perform_stun", local_ports[i]);
@@ -466,6 +469,8 @@ int perform_stun(const char *if_name, const char *if_addr, const char *stun_host
 			break;
 
 	}
+
+	system("nft -a list chain inet fw4 srcnat | grep -o \"miniupnpd-stun.*\" | while read _ _ _ handle; do nft delete rule inet fw4 srcnat handle $handle; done");
 
 	/* Remove unblock for local ports */
 	for (i = 0; i < 4; ++i) {
@@ -554,7 +559,8 @@ static int add_filter_rule2(const char *ifname, const char *rhost, const char *i
 	iaddr = iaddr;
 	iport = iport;
 	desc = desc;
-	snprintf(buffer, sizeof(buffer), "/sbin/iptables -t filter -I INPUT -p %d --dport %hu -j ACCEPT", proto, eport);
+	snprintf(buffer, sizeof(buffer), "nft insert rule inet fw4 input %s dport %hu counter accept comment miniupnpd-stun-%hu-%s",
+			proto == IPPROTO_UDP ? "udp" : "tcp", eport, eport, proto == IPPROTO_UDP ? "udp" : "tcp");
 	printf("Executing: %s\n", buffer);
 	return system(buffer);
 }
@@ -563,7 +569,7 @@ static int delete_filter_rule(const char * ifname, unsigned short port, int prot
 {
 	char buffer[100];
 	ifname = ifname;
-	snprintf(buffer, sizeof(buffer), "/sbin/iptables -t filter -D INPUT -p %d --dport %hu -j ACCEPT", proto, port);
+	snprintf(buffer, sizeof(buffer), "nft -a list chain inet fw4 input | grep -o \"miniupnpd-stun-%hu-%s.*\" | while read _ _ _ handle; do nft delete rule inet fw4 input handle $handle; done", port, proto == IPPROTO_UDP ? "udp" : "tcp");
 	printf("Executing: %s\n", buffer);
 	return system(buffer);
 }
