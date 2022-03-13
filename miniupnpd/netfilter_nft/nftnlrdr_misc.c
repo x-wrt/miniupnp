@@ -63,11 +63,11 @@
 #define RULE_CACHE_INVALID  0
 #define RULE_CACHE_VALID    1
 
-const char * nft_table = "filter";
-const char * nft_nat_table = "filter";
-const char * nft_prerouting_chain = "prerouting_miniupnpd";
-const char * nft_postrouting_chain = "postrouting_miniupnpd";
-const char * nft_forward_chain = "miniupnpd";
+const char * nft_table = "fw4";
+const char * nft_nat_table = "fw4";
+const char * nft_prerouting_chain = "dstnat";
+const char * nft_postrouting_chain = "srcnat";
+const char * nft_forward_chain = "forward_wan";
 int nft_nat_family = NFPROTO_INET;
 int nft_ipv4_family = NFPROTO_INET;
 int nft_ipv6_family = NFPROTO_INET;
@@ -263,6 +263,10 @@ parse_rule_meta(struct nftnl_expr *e, rule_t *r)
 		break;
 	case NFT_META_OIF:
 		reg_type = RULE_REG_IIF;
+		set_reg(r, dreg, reg_type, 0);
+		break;
+	case NFT_META_L4PROTO:
+		reg_type = RULE_REG_IP_PROTO;
 		set_reg(r, dreg, reg_type, 0);
 		break;
 	default:
@@ -631,6 +635,13 @@ table_cb(const struct nlmsghdr *nlh, void *data)
 	return result;
 }
 #undef CB_DATA
+
+int refresh_nft_cache_set_invalid(void)
+{
+	rule_list_filter_validate = RULE_CACHE_INVALID;
+	rule_list_peer_validate = RULE_CACHE_INVALID;
+	rule_list_redirect_validate = RULE_CACHE_INVALID;
+}
 
 int
 refresh_nft_cache_filter(void)
@@ -1315,6 +1326,8 @@ chain_op(enum nf_tables_msg_types op, uint16_t family, const char * table,
 	char buf[MNL_SOCKET_BUFFER_SIZE*2];
 
 	struct nftnl_chain *chain;
+
+	return 0;
 
 	// log_debug("(%d, %d, %s, %s, %s, %d, %d)", op, family, table, name, type, hooknum, priority);
 
