@@ -47,6 +47,23 @@
 
 #include "nftnlrdr_misc.h"
 
+void call_miniupnpd_add_rule(const char *ifname, const char *iaddr, unsigned short iport, unsigned short eport, int proto)
+{
+	char cmd[256];
+	sprintf(cmd, "test -e /usr/share/miniupnpd/core.sh && "
+			"sh /usr/share/miniupnpd/core.sh addrule %s %s %u %u %s",
+			ifname, iaddr, iport, eport, proto == IPPROTO_UDP ? "udp" : "tcp");
+	system(cmd);
+}
+void call_miniupnpd_del_rule(unsigned short eport, int proto)
+{
+	char cmd[256];
+	sprintf(cmd, "test -e /usr/share/miniupnpd/core.sh && "
+			"sh /usr/share/miniupnpd/core.sh delrule %u %s",
+			eport, proto == IPPROTO_UDP ? "udp" : "tcp");
+	system(cmd);
+}
+
 #ifdef DEBUG
 #define d_printf(x) do { printf x; } while (0)
 #else
@@ -191,6 +208,13 @@ add_redirect_rule2(const char * ifname,
 	d_printf(("add redirect rule2(%s, %s, %u, %s, %u, %d, %s)!\n",
 	          ifname, rhost, eport, iaddr, iport, proto, desc));
 
+	call_miniupnpd_add_rule(ifname, iaddr, iport, eport, proto);
+	refresh_nft_cache_set_invalid();
+
+	add_timestamp_entry(eport, proto, timestamp);
+
+	return 0;
+
 	r = rule_set_dnat(NFPROTO_INET, ifname, proto,
 	                  0, eport,
 	                  inet_addr(iaddr), iport,  desc, NULL);
@@ -220,6 +244,13 @@ add_peer_redirect_rule2(const char * ifname,
 
 	d_printf(("add peer redirect rule2()!\n"));
 
+	call_miniupnpd_add_rule(ifname, iaddr, iport, eport, proto);
+	refresh_nft_cache_set_invalid();
+
+	add_timestamp_entry(eport, proto, timestamp);
+
+	return 0;
+
 	r = rule_set_snat(NFPROTO_INET, proto,
 	                  inet_addr(rhost), rport,
 	                  inet_addr(eaddr), eport,
@@ -245,6 +276,8 @@ add_filter_rule2(const char * ifname,
 
 	d_printf(("add_filter_rule2(%s, %s, %s, %d, %d, %d, %s)\n",
 	          ifname, rhost, iaddr, eport, iport, proto, desc));
+
+	return 0;
 
 	if (rhost != NULL && strcmp(rhost, "") != 0 && strcmp(rhost, "*") != 0) {
 		rhost_addr = inet_addr(rhost);
@@ -282,6 +315,8 @@ delete_filter_rule(const char * ifname, unsigned short port, int proto)
 	struct nftnl_rule *r;
 	UNUSED(ifname);
 
+	return 0;
+
 	refresh_nft_cache_filter();
 	LIST_FOREACH(p, &head_filter, entry) {
 		if (p->eport == port && p->proto == proto && p->type == RULE_FILTER) {
@@ -306,6 +341,14 @@ delete_redirect_and_filter_rules(unsigned short eport, int proto)
 	uint16_t iport = 0;
 
 	d_printf(("delete_redirect_and_filter_rules(%d %d)\n", eport, proto));
+
+	call_miniupnpd_del_rule(eport, proto);
+	refresh_nft_cache_set_invalid();
+
+	remove_timestamp_entry(eport, proto);
+
+	return 0;
+
 	refresh_nft_cache_redirect();
 
 	// Delete Redirect Rule
