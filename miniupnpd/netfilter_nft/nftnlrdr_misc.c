@@ -330,7 +330,7 @@ parse_rule_payload(struct nftnl_expr *e, rule_t *r)
 	len = nftnl_expr_get_u32(e, NFTNL_EXPR_PAYLOAD_LEN);
 	regptr = get_reg_type_ptr(r, dreg);
 	if (regptr == NULL) {
-		syslog(LOG_ERR, "%s: unsupported dreg %u", "parse_rule_payload", dreg);
+		syslog(LOG_INFO, "%s: unsupported dreg %u", "parse_rule_payload", dreg);
 		return;
 	}
 
@@ -612,7 +612,7 @@ table_cb(const struct nlmsghdr *nlh, void *data)
 					break;
 
 				default:
-					syslog(LOG_WARNING, "unknown rule type %d", r->type);
+					syslog(LOG_INFO, "unknown rule type %d", r->type);
 					break;
 				}
 			} else {
