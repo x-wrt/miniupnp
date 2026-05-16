@@ -48,6 +48,7 @@
 #include <sys/capability.h>
 #endif
 #ifdef HAS_LIBCAP_NG
+#include <sys/prctl.h>
 #include <cap-ng.h>
 #endif
 
@@ -2584,13 +2585,29 @@ main(int argc, char * * argv)
 	}
 #endif /* HAS_LIBCAP */
 #ifdef HAS_LIBCAP_NG
+// 1. 初始化并清空当前所有的能力状态
 	capng_setpid(getpid());
 	capng_clear(CAPNG_SELECT_BOTH);
-	if (capng_updatev(CAPNG_ADD, CAPNG_EFFECTIVE|CAPNG_PERMITTED, CAP_NET_BROADCAST, CAP_NET_ADMIN, CAP_NET_RAW, -1) < 0) {
+
+	// 2. 一次性将所需能力添加到 Effective, Permitted 和 Inheritable 集合中
+	// 必须包含 INHERITABLE，否则后续的 Ambient 设置必定失败
+	if (capng_updatev(CAPNG_ADD, CAPNG_EFFECTIVE | CAPNG_PERMITTED | CAPNG_INHERITABLE, CAP_NET_BROADCAST, CAP_NET_ADMIN, CAP_NET_RAW, -1) < 0) {
 		syslog(LOG_ERR, "capng_updatev() failed");
+	}
+
+	// 3. 将状态真正应用到当前进程 (CAPNG_SELECT_CAPS 涵盖了 Eff, Perm, Inh)
+	if (capng_apply(CAPNG_SELECT_CAPS) < 0) {
+		syslog(LOG_ERR, "capng_apply() failed");
 	} else {
-		if (capng_apply(CAPNG_SELECT_BOTH) < 0) {
-			syslog(LOG_ERR, "capng_apply() failed");
+		// 4. 现在可以将这些能力提升为 Ambient，使其能够在 execve (system/popen) 后被 sh 和 nft 继承
+		static const int caps[] = {
+			CAP_NET_BROADCAST, CAP_NET_ADMIN, CAP_NET_RAW
+		};
+
+		for (size_t i = 0; i < sizeof(caps)/sizeof(caps[0]); i++) {
+			if (prctl(PR_CAP_AMBIENT, PR_CAP_AMBIENT_RAISE, caps[i], 0, 0) < 0) {
+				syslog(LOG_ERR, "prctl(PR_CAP_AMBIENT_RAISE, %d) failed: %m", caps[i]);
+			}
 		}
 	}
 #endif /* HAS_LIBCAP_NG */
